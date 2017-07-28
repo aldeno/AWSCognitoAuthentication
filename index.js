@@ -4,63 +4,60 @@ var path = require('path');
 
 var testmodule = require('./modules/testmodule.js');
 var awsSignupMpodule = require('./modules/awssignup.js');
+var awsAuth = require('./modules/signin.js');
+var signout = require('./modules/signout.js');
+var authenticate = require('./modules/authenticate');
 
 var app = express();
 
-var dummyData = [];
-
-app.use(bodyParser.urlencoded({extended: true}));
+app.use(bodyParser.urlencoded({
+  extended: true
+}));
 app.use(bodyParser.json());
 
-app.use('/static', express.static(path.join(__dirname, '/static')))
+//Serve static files from /static folder (js, css)
+app.use('/static', express.static(path.join(__dirname, '/static')));
 
-//app.use(testmodule);
-/*app.get('/api/test-module', function(req, res, next) {
-  testmodule.testFunction();
-  res.status(200).send('');
-});*/
-
-app.post('/api/signup', function(req, res){
-  console.log('Entering /api/signup');
-
+//Create a new user on AWS
+app.post('/api/signup', function(req, res) {
   var username = req.body.username;
   var password = req.body.password;
   var email = req.body.email;
 
-  var username = awsSignupMpodule.signup('testuser', 'testpassword', 'testmail@mail.com');
-  console.log(username);
-  username.then(function(user){
-    res.status('200').send({emai: email});
+  var username = awsSignupMpodule.signup(username, password, email);
+  username.then(function(user) {
+    res.status('200').send({
+      emai: email
+    });
   }, function(err) {
-    res.status(200).send({error: err});
+    res.status(200).send({
+      error: err
+    });
   });
 });
 
-/*app.get('/api/sign-up', function(req, res){
-  console.log('Entering /api/test-module...');
-  var username = awsSignupMpodule.signup('testuser', 'testpassword', 'testmail@mail.com');
-  console.log(username);
-  username.then(function(user){
-    res.status('200').send('A new username is: ' + user);
-  });
-});*/
+//Authenticate user on AWS
+app.post('/api/signin', awsAuth.signin);
 
-//testmodule.testFunction();
+//signout user from AWS
+app.post('/api-secure/signout', function(req, res) {
+  signout.signout(req, res);
+});
 
-app.get('/', function(req, res){
+app.all('/api-secure/*', function(req, res, next){
+  authenticate.authenticate(req, res, next);
+});
+
+app.post('/api-secure/test-request', function(req, res) {
+  res.json({message: 'You are authenticated.'});
+});
+
+//return main html page
+app.get('/', function(req, res) {
   res.sendFile(path.join(__dirname + '/index.html'));
 });
 
-/*app.get('/api/get-data', function(req, res){
-  res.json({data: dummyData});
-});*/
-
-/*app.post('/api/post-data', function(req, res) {
-  var newData = req.body.data;
-  dummyData.push(newData);
-  res.json({data: dummyData});
-});*/
-
-app.listen(8080, function(){
+//Listen on localhost:8080
+app.listen(8080, function() {
   console.log('server is up');
 });
